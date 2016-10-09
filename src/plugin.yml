@@ -1,0 +1,10 @@
+name: HouseInABox
+main: de.guntram.bukkit.hiab.HouseInABoxPlugin
+version: "0.1"
+depend: [WorldEdit]
+commands:
+    hiab:
+        description: House in a Box control commands.
+        usage: /hiab give <schematic name> [player name]
+        permission: hiab.admin
+        permission-message: No access to hiab commands

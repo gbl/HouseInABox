@@ -1,0 +1,7 @@
+## YAML Template.
+---
+displayname: "Boxed House"
+magicblock: BEDROCK
+minheight: 50
+maxheight: 100
+maxblocks: 200000
