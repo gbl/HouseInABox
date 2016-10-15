@@ -10,9 +10,12 @@ import com.sk89q.worldedit.schematic.SchematicFormat;
 import java.io.File;
 import java.io.IOException;
 import static java.lang.Math.abs;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import me.ryanhamshire.GriefPrevention.Claim;
+import me.ryanhamshire.GriefPrevention.GriefPrevention;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -27,6 +30,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class HouseInABoxPlugin extends JavaPlugin implements Listener {
@@ -37,6 +41,8 @@ public class HouseInABoxPlugin extends JavaPlugin implements Listener {
     private Logger logger;
     private int minHeight, maxHeight;
     private int maxBlocks;
+    private Plugin griefPrevention;
+    private int griefPreventionClaimDistance;
     
     @Override
     public void onEnable() {
@@ -52,11 +58,23 @@ public class HouseInABoxPlugin extends JavaPlugin implements Listener {
         maxBlocks=config.getInt("maxblocks", 30*30*20);
         minHeight=config.getInt("minheight", 5);        // no pasting to bedrock
         maxHeight=config.getInt("maxheight", 120);      // no pasting in sky or nether top
+        griefPrevention = getServer().getPluginManager().getPlugin("GriefPrevention");
+        griefPreventionClaimDistance=config.getInt("claimdistance", 100);
         this.getServer().getPluginManager().registerEvents(this, this);
     }
     
+    // run the handler twice; once before GP, and once after GP
+    @EventHandler(priority=EventPriority.NORMAL)
+    public void onPlaceBlockNormal(BlockPlaceEvent event) {
+        onPlaceBlock(event, 1);
+    }
+
     @EventHandler(priority=EventPriority.HIGHEST)
-    public void OnPlaceBlock(BlockPlaceEvent event) {
+    public void onPlaceBlockHighest(BlockPlaceEvent event) {
+        onPlaceBlock(event, 2);
+    }
+
+    public void onPlaceBlock(BlockPlaceEvent event, int round) {
         if (event.isCancelled())
             return;
         Player player=event.getPlayer();
@@ -74,31 +92,43 @@ public class HouseInABoxPlugin extends JavaPlugin implements Listener {
             return;
         int metaPos=name.indexOf(metaName+": ");
         if (metaPos>=0) {
-            String schematicName=name.substring(metaPos+metaName.length()+2);
             Location locPlayer=player.getLocation();
             Location locBlock=block.getLocation();
-            if (locBlock.getBlockY() <= minHeight
-            ||  locBlock.getBlockY() >= maxHeight) {
-                player.sendMessage("You can't build at that level");
-                event.setCancelled(true);
-                return;
+            
+            if (round==1) {
+                if (locBlock.getBlockY() <= minHeight
+                ||  locBlock.getBlockY() >= maxHeight) {
+                    player.sendMessage("You can't build at that level");
+                    event.setCancelled(true);
+                    return;
+                }
+
+                if (griefPrevention!=null && isCloseToClaim(player, block.getLocation())) {
+                    player.sendMessage("Too close to a claim you don't have build permission in!");
+                    event.setCancelled(true);
+                    return;
+                }
             }
-            int rotation;
-            locPlayer.subtract(locBlock);
-            if (abs(locPlayer.getBlockX()) > abs(locPlayer.getBlockZ())) {
-                if (locPlayer.getBlockX() > 0)
-                    rotation=270;
-                else
-                    rotation=90;
-            } else {
-                if (locPlayer.getBlockZ() > 0)
-                    rotation=0;
-                else
-                    rotation=180;
-            }
-            player.sendMessage("Building your house: '"+schematicName+"'");
-            if (!build(event.getBlock().getLocation(), schematicName, rotation)) {
-                event.setCancelled(true);
+            
+            if (round==2) {
+                String schematicName=name.substring(metaPos+metaName.length()+2);
+                int rotation;
+                locPlayer.subtract(locBlock);
+                if (abs(locPlayer.getBlockX()) > abs(locPlayer.getBlockZ())) {
+                    if (locPlayer.getBlockX() > 0)
+                        rotation=270;
+                    else
+                        rotation=90;
+                } else {
+                    if (locPlayer.getBlockZ() > 0)
+                        rotation=0;
+                    else
+                        rotation=180;
+                }
+                player.sendMessage("Building your house: '"+schematicName+"'");
+                if (!build(event.getBlock().getLocation(), schematicName, rotation)) {
+                    event.setCancelled(true);
+                }
             }
         }
     }
@@ -165,5 +195,31 @@ public class HouseInABoxPlugin extends JavaPlugin implements Listener {
             return false;
         }
         return true;
+    }
+
+    private boolean isCloseToClaim(Player player, Location location) {
+        Collection<Claim> claims = GriefPrevention.instance.dataStore.getClaims();
+        for (Claim claim: claims) {
+            Location edge1=claim.getLesserBoundaryCorner();
+            if (edge1.getWorld()!=location.getWorld())
+                continue;
+            Location edge2=claim.getGreaterBoundaryCorner();
+            String msg;
+            if (edge1.getBlockX()-griefPreventionClaimDistance < location.getBlockX()
+            &&  edge1.getBlockZ()-griefPreventionClaimDistance < location.getBlockZ()
+            &&  edge2.getBlockX()+griefPreventionClaimDistance > location.getBlockX()
+            &&  edge2.getBlockZ()+griefPreventionClaimDistance > location.getBlockZ()
+            &&  (msg=claim.allowBuild(player, Material.STONE))!=null) {
+                //player.sendMessage(msg);
+                //player.sendMessage(
+                //        "x1="+edge1.getBlockX()+" z1="+edge1.getBlockZ()+
+                //        " x2="+edge2.getBlockX()+" z2="+edge2.getBlockZ()+
+                //        " claimdistance="+griefPreventionClaimDistance +
+                //        " owner:"+claim.getOwnerName()+" id:"+claim.getID()
+                //);
+                return true;
+            }
+        }
+        return false;
     }
 }
