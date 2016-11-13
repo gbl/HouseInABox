@@ -151,6 +151,10 @@ public class AsyncBuilder implements Runnable {
                         } else {
                             session.setBlock(where.add(position), block);
                         }
+                    } else if (currentTurn==0) {
+                        // Replace all non-opaque blocks with air so we don't
+                        // get falling sand and stuff
+                        session.setBlock(where.add(position), new BaseBlock(0));
                     }
                 }
             }
