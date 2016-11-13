@@ -6,3 +6,7 @@ minheight: 50
 maxheight: 100
 maxblocks: 200000
 claimdistance: 100
+fireworks: true
+# This is to work around a bug in worldedit rotating only oak doors/gates.
+# Set to false if you have a newer worldedit that has the bug fixed.
+fixworldeditdoorgaterotation: true

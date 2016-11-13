@@ -1,9 +1,8 @@
 package de.guntram.bukkit.hiab;
 
-import com.sk89q.worldedit.BlockVector;
 import com.sk89q.worldedit.CuboidClipboard;
 import com.sk89q.worldedit.EditSession;
-import com.sk89q.worldedit.MaxChangedBlocksException;
+import com.sk89q.worldedit.Vector;
 import com.sk89q.worldedit.bukkit.BukkitWorld;
 import com.sk89q.worldedit.data.DataException;
 import com.sk89q.worldedit.schematic.SchematicFormat;
@@ -43,6 +42,10 @@ public class HouseInABoxPlugin extends JavaPlugin implements Listener {
     private int maxBlocks;
     private Plugin griefPrevention;
     private int griefPreventionClaimDistance;
+    private boolean fixWorldEditDoorGateRotation;
+    private boolean showFireWorksWhileBuilding;
+    
+    static final int TICKSPERSEC=20;
     
     @Override
     public void onEnable() {
@@ -50,6 +53,8 @@ public class HouseInABoxPlugin extends JavaPlugin implements Listener {
         saveDefaultConfig();
         config=getConfig();
         metaName=config.getString("displayname", "House in a Box");
+        fixWorldEditDoorGateRotation=config.getBoolean("fixworldeditdoorgaterotation", false);
+        showFireWorksWhileBuilding=config.getBoolean("fireworks", true);
         magicBlock=Material.getMaterial(config.getString("magicblock", "BEDROCK"));
         if (magicBlock==null) {
             logger.warning("Cannot parse material name. Resorting to bedrock.");
@@ -182,11 +187,19 @@ public class HouseInABoxPlugin extends JavaPlugin implements Listener {
             logger.log(Level.INFO, ex.getMessage(), ex);
             return false;
         }
-        clip.rotate2D(rotation);
         
-        BlockVector vector=new BlockVector(location.getBlockX(), location.getBlockY(), location.getBlockZ());
+        // rotate2D(180) sometimes causes an ArrayIndexOutOfBoundsException for whichever reason.
+        //if (rotation==90 || rotation==270)
+            clip.rotate2D(rotation);
+        //else if (rotation==180) {
+            //clip.flip(FlipDirection.NORTH_SOUTH);
+        //}
+        
+        Vector vector=new Vector(location.getBlockX(), location.getBlockY(), location.getBlockZ());
         BukkitWorld world=new BukkitWorld(location.getWorld());
         EditSession session=new EditSession(world, maxBlocks);
+
+/* This is the old way of using the WE API directly        
         try {
             clip.paste(session, vector, false);
         } catch (MaxChangedBlocksException ex) {
@@ -194,6 +207,10 @@ public class HouseInABoxPlugin extends JavaPlugin implements Listener {
             logger.log(Level.INFO, "MaxChangedBlocksException from WorldEdit when pasting '{0}'", schematicName);
             return false;
         }
+*/
+        AsyncBuilder builder=new AsyncBuilder(this, clip, vector.add(clip.getOffset()), session, rotation, location);
+        int task=getServer().getScheduler().scheduleSyncRepeatingTask(this, builder, TICKSPERSEC, TICKSPERSEC);
+        builder.setTaskID(task);
         return true;
     }
 
@@ -221,5 +238,13 @@ public class HouseInABoxPlugin extends JavaPlugin implements Listener {
             }
         }
         return false;
+    }
+    
+    public boolean getFixWorldEditDoorGateRotation() {
+        return fixWorldEditDoorGateRotation;
+    }
+    
+    public boolean getShowFireWorks() {
+        return showFireWorksWhileBuilding;
     }
 }
