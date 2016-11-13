@@ -132,9 +132,9 @@ public class AsyncBuilder implements Runnable {
                                     int data=block.getData();
                                     if ((data&8)==0) {
                                         switch (rotation) {
-                                            case  90: block.setData(((data+3)&3) | (data&~3)); break;
+                                            case  90: block.setData(((data+1)&3) | (data&~3)); break;
                                             case 180: block.setData(((data+2)&3) | (data&~3)); break;
-                                            case 270: block.setData(((data+1)&3) | (data&~3)); break;
+                                            case 270: block.setData(((data+3)&3) | (data&~3)); break;
                                         }
                                     }
                             }
