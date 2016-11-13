@@ -18,6 +18,7 @@ import me.ryanhamshire.GriefPrevention.GriefPrevention;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.block.Biome;
 import org.bukkit.block.Block;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -44,6 +45,8 @@ public class HouseInABoxPlugin extends JavaPlugin implements Listener {
     private int griefPreventionClaimDistance;
     private boolean fixWorldEditDoorGateRotation;
     private boolean showFireWorksWhileBuilding;
+    private int buildDelayTicks;
+    private String startMessage, endMessage;
     
     static final int TICKSPERSEC=20;
     
@@ -65,6 +68,9 @@ public class HouseInABoxPlugin extends JavaPlugin implements Listener {
         maxHeight=config.getInt("maxheight", 120);      // no pasting in sky or nether top
         griefPrevention = getServer().getPluginManager().getPlugin("GriefPrevention");
         griefPreventionClaimDistance=config.getInt("claimdistance", 100);
+        buildDelayTicks=config.getInt("delayticks", TICKSPERSEC);
+        startMessage=config.getString("startmessage", "Building your %");
+        endMessage=config.getString("endmessage", "Enjoy your %!");
         this.getServer().getPluginManager().registerEvents(this, this);
     }
     
@@ -130,8 +136,10 @@ public class HouseInABoxPlugin extends JavaPlugin implements Listener {
                     else
                         rotation=180;
                 }
-                player.sendMessage("Building your house: '"+schematicName+"'");
-                if (!build(event.getBlock().getLocation(), schematicName, rotation)) {
+                if (!startMessage.isEmpty()) {
+                    player.sendMessage(startMessage.replaceAll("%", schematicName));
+                }
+                if (!build(event.getBlock().getLocation(), schematicName, rotation, player)) {
                     event.setCancelled(true);
                 }
             }
@@ -173,8 +181,11 @@ public class HouseInABoxPlugin extends JavaPlugin implements Listener {
         return true;
     }
 
-    private boolean build(Location location, String schematicName, int rotation) {
-        File file=new File(this.getDataFolder(), schematicName+".schematic");
+    private boolean build(Location location, String schematicName, int rotation, Player player) {
+        Biome biome=location.getBlock().getBiome();
+        File file=new File(this.getDataFolder(), schematicName+"-"+biome.toString().toLowerCase()+".schematic");
+        if (!(file.exists()))
+            file=new File(this.getDataFolder(), schematicName+".schematic");
         if (!(file.exists())) {
             logger.log(Level.INFO, "File "+file.getAbsolutePath()+" not found!");
             return false;
@@ -188,28 +199,18 @@ public class HouseInABoxPlugin extends JavaPlugin implements Listener {
             return false;
         }
         
-        // rotate2D(180) sometimes causes an ArrayIndexOutOfBoundsException for whichever reason.
-        //if (rotation==90 || rotation==270)
-            clip.rotate2D(rotation);
-        //else if (rotation==180) {
-            //clip.flip(FlipDirection.NORTH_SOUTH);
-        //}
+        clip.rotate2D(rotation);
         
         Vector vector=new Vector(location.getBlockX(), location.getBlockY(), location.getBlockZ());
         BukkitWorld world=new BukkitWorld(location.getWorld());
         EditSession session=new EditSession(world, maxBlocks);
 
-/* This is the old way of using the WE API directly        
-        try {
-            clip.paste(session, vector, false);
-        } catch (MaxChangedBlocksException ex) {
-            session.undo(session);
-            logger.log(Level.INFO, "MaxChangedBlocksException from WorldEdit when pasting '{0}'", schematicName);
-            return false;
-        }
-*/
-        AsyncBuilder builder=new AsyncBuilder(this, clip, vector.add(clip.getOffset()), session, rotation, location);
-        int task=getServer().getScheduler().scheduleSyncRepeatingTask(this, builder, TICKSPERSEC, TICKSPERSEC);
+        AsyncBuilder builder=new AsyncBuilder(this, clip, 
+                vector.add(clip.getOffset()), session, rotation, location,
+                player,
+                endMessage==null ? null : endMessage.replaceAll("%", schematicName)
+        );
+        int task=getServer().getScheduler().scheduleSyncRepeatingTask(this, builder, buildDelayTicks, buildDelayTicks);
         builder.setTaskID(task);
         return true;
     }

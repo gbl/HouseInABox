@@ -17,6 +17,7 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Firework;
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.meta.FireworkMeta;
 
 /**
@@ -33,19 +34,25 @@ public class AsyncBuilder implements Runnable {
     private final EditSession session;
     private final int rotation;
     private final Location location;
+    private final Player player;
+    private final String doneMessage;
 
     private static Material[] matValues;
     private static Vector up;
 
     private final int INVALIDTASKID=-1;
     
-    AsyncBuilder(HouseInABoxPlugin plugin, CuboidClipboard clipboard, Vector position, EditSession session, int rotation, Location location) {
+    AsyncBuilder(HouseInABoxPlugin plugin, CuboidClipboard clipboard, 
+            Vector position, EditSession session, int rotation, 
+            Location location, Player player, String doneMessage) {
         this.plugin=plugin;
         this.clipboard=clipboard;
         this.position=position;
         this.session=session;
         this.rotation=rotation;
         this.location=location;
+        this.player=player;
+        this.doneMessage=doneMessage;
         if (matValues==null)
             matValues=Material.values();
         if (up==null)
@@ -65,6 +72,8 @@ public class AsyncBuilder implements Runnable {
         if (taskID==INVALIDTASKID)
             return;
         if (currentTurn==2) {
+            if (player!=null && doneMessage!=null)
+                player.sendMessage(doneMessage);
             plugin.getServer().getScheduler().cancelTask(taskID);
             return;
         }
