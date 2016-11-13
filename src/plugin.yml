@@ -1,6 +1,6 @@
 name: HouseInABox
 main: de.guntram.bukkit.hiab.HouseInABoxPlugin
-version: "0.4"
+version: "0.5"
 depend: [WorldEdit]
 commands:
     hiab:

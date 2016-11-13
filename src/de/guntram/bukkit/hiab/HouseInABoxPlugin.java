@@ -24,10 +24,13 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
+import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.Plugin;
@@ -74,6 +77,21 @@ public class HouseInABoxPlugin extends JavaPlugin implements Listener {
         this.getServer().getPluginManager().registerEvents(this, this);
     }
     
+    @EventHandler
+    public void onInventoryClick(InventoryClickEvent event) {
+        if (event.getInventory().getType() == InventoryType.ANVIL) {
+            ItemStack is=event.getCurrentItem();
+            if (is==null) return;
+            ItemMeta im=is.getItemMeta();
+            if (im==null) return;
+            String name=im.getDisplayName();
+            if (name.startsWith(metaName)) {
+                event.getWhoClicked().sendMessage("You can't craft build boxes");
+                event.setResult(Event.Result.DENY);
+            }
+        }
+    }
+
     // run the handler twice; once before GP, and once after GP
     @EventHandler(priority=EventPriority.NORMAL)
     public void onPlaceBlockNormal(BlockPlaceEvent event) {
