@@ -85,6 +85,7 @@ public class HouseInABoxPlugin extends JavaPlugin implements Listener {
             ItemMeta im=is.getItemMeta();
             if (im==null) return;
             String name=im.getDisplayName();
+            if (name==null) return;
             if (name.startsWith(metaName)) {
                 event.getWhoClicked().sendMessage("You can't craft build boxes");
                 event.setResult(Event.Result.DENY);
